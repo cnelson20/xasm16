@@ -6,7 +6,7 @@ extern char *fileloc_term;
 extern struct dyn_list instruction_list;
 
 void main();
-void loadfile(char *filename, char *location);
+void loadfile(char *filename);
 
 void first_pass();
 void second_pass();

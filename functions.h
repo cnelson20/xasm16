@@ -1,7 +1,7 @@
-void __fastcall__ cbm_chrout(unsigned char c);
+void cbm_chrout(unsigned char c);
 
-void __fastcall__ strtoupper(char *string);
-void __fastcall__ strtolower(char *string);
+void strtoupper(char *string);
+void strtolower(char *string);
 
 /* Finds the first character > 0x20 (skips past whitespace chars) */
 char *findwhitespace(char *string);

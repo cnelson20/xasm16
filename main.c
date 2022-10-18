@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <cbm.h>
 #include <string.h>
 #include "main.h"
 #include "functions.h"
@@ -10,9 +9,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <peekpoke.h>
 
-char *fileloc = (char *)0x7000;
+char *fileloc;
 char *fileloc_term;
 
 struct dyn_list command_list;
@@ -23,36 +21,21 @@ unsigned char filename_size = 32;
 char output_filename[32];
 unsigned char verbose_mode = 1;
 
-void main() {
-	__asm__ ("lda #142");
-	__asm__ ("jsr $FFD2");
-		
-	if (PEEKW(0x90A0) == 0x5656) {
-		strcpy(filename, *((char **)PEEKW(0x90A0)));
-		verbose_mode = 0;
-	} else {
-		printf("enter filename: ");
-		fgets(filename, filename_size, stdin);
-		*strchr(filename, 0xd) = '\0';
-		strtoupper(filename);
+void main() {		
+	printf("enter filename: ");
+	fgets(filename, filename_size, stdin);
+	*strchr(filename, '\n') = '\0';
 
-		loadfile(filename, fileloc);
-		fileloc_term = strlen(fileloc) + fileloc;
-		if (fileloc_term == fileloc) {
-			puts("no such file exists");
-			return;
-		}
-		printf("file length: %u\n", fileloc_term - fileloc);
+	loadfile(filename);
+	fileloc_term = strlen(fileloc) + fileloc;
+	if (fileloc_term == fileloc) {
+		puts("no such file exists");
+		return;
 	}
-	if (PEEKW(0x90A0) == 0x5656) {
-		*output_filename = '\0';
-	} else { 
-		printf("output filename? (blank=use file as basis):");
-		fgets(output_filename, sizeof(output_filename), stdin);
-		*strchr(output_filename, 0xd) = '\0';
-		strtoupper(output_filename);
-		
-	}
+	printf("file length: %lu\n", fileloc_term - fileloc);
+	printf("output filename? (blank=use file as basis):");
+	fgets(output_filename, sizeof(output_filename), stdin);
+	*strchr(output_filename, '\n') = '\0';
 	if (verbose_mode) {
 		char *temp = malloc(16);
 		printf("be verbose mode? (y/n):");
@@ -81,28 +64,12 @@ void main() {
 /* 
 	Loads file into location.
 */
-void loadfile(char *filename, char *location) {
-	char *temp = location;
-
-	cbm_k_setnam(filename);
-	cbm_k_setlfs(10, 8, 2);
+void loadfile(char *filename) {
+	int fd = open(filename, O_RDONLY);
+	fileloc = malloc(65536);
 	
-	cbm_k_open();
-	if (cbm_k_readst() != 0) {
-		*((char *)location) = '\0';
-		return;
-	}
-	
-	cbm_k_chkin(10);	
-	while (cbm_k_readst() == 0) {
-		*temp = cbm_k_basin();
-		++temp;
-	}
-	//printf("%hu\n", cbm_k_readst());
-	--temp;
-	*temp = '\0';
-	cbm_k_close(10);
-	cbm_k_clrch();
+	*(fileloc + read(fd, fileloc, 65536)) = '\0';
+	fileloc_term = fileloc + strlen(fileloc);
 }
 
 unsigned char is_letter(char c) {
@@ -114,8 +81,7 @@ void print_chars(char *string) {
 		printf("%hhx ", *string);
 		++string;
 	}
-	__asm__ ("lda #$d");
-	__asm__ ("jsr $FFD2");
+	puts("");
 }
 
 void first_pass() {
@@ -123,7 +89,7 @@ void first_pass() {
 	
 	init_dyn_list(&command_list);
 	/* makes life easier */
-	strtoupper(temp);
+  strtolower(temp);
 	
 	while (*temp) {
 		/* setup line */
@@ -135,10 +101,11 @@ void first_pass() {
 		unsigned char string_index;
 		
 		/* find next \r and replace with null terminator */
-		temp = strchr(line,0xd);
+		temp = strchr(line,'\r');
 		if (temp == NULL) {
-			temp = strchr(line, 0xa);
+			temp = strchr(line, '\n');
 		}
+		//printf("line: %p temp: %p\n", line, temp);
 		if (temp == NULL && line + strlen(line) < fileloc_term) {
 			temp = line + strlen(line);
 		}
@@ -177,11 +144,11 @@ void first_pass() {
 		if (semicolon_temp != NULL) {
 			*semicolon_temp = '\0';
 		}
-		if (strlen(line) == 0 || strchr(line,0xd)) {
+		if (strlen(line) == 0 || strchr(line,'\r') || strchr(line, '\n')) {
 			if (semicolon_temp != NULL) {
 				*semicolon_temp = ';';
 			}
-			*temp = 0xd;
+			*temp = '\n';
 			++temp;
 			continue;
 		}
@@ -407,13 +374,13 @@ void first_pass() {
 			/* 
 				if there is no colon, cannot be a label
 			*/
-			if (colon_pos) {
+			if (colon_pos != NULL) {
 				char_following_colon = *(colon_pos + 1);
 			} else {
 				char_following_colon = 0xFF;
 			}
 			
-			if ((firstchar >= 0x40 && firstchar < 0x41 + 26) && char_following_colon <= 0x20) {		
+			if ((firstchar >= 'a' && firstchar <= 'z') && colon_pos != NULL && char_following_colon <= 0x20) {		
 				comm = malloc(sizeof(struct command));
 				*colon_pos = '\0';
 				comm->label = strdup(line);			
@@ -421,7 +388,7 @@ void first_pass() {
 				*colon_pos = ':';
 				comm->is_directive = 0; 
 				dyn_list_add(&command_list, comm);
-			} else if (*line == '.') {
+			} else if (firstchar == '.') {
 				comm = malloc(sizeof(struct command));
 				comm->label = strdup(line);
 				comm->label2 = NULL;
@@ -470,7 +437,7 @@ void first_pass() {
 			*semicolon_temp = ';';
 		}
 		/* set end of line back to carriage return*/
-		*temp = '\r';
+		*temp = '\n';
 		++temp;
 	}
 	// Null terminating byte may have been removed, so re-add it
@@ -737,15 +704,6 @@ int open_file_write() {
 		}
 		strcat(filename, ".prg");
 	}
-	strtoupper(filename);
-	
-	*scratch = 's';
-	*(scratch+1) = ':';
-	cbm_k_setnam(scratch);
-	cbm_k_setlfs(1, 8, 15);
-	cbm_k_open();
-	cbm_k_clrch();
-	cbm_k_close(1);
 	
 	printf("output-filename: '%s'\n", filename);
 	fd = creat(filename, 0777);
@@ -766,7 +724,7 @@ unsigned short parse_num(char *string) {
 	unsigned short num; 
 	
 	if (*string == '$') {
-		sscanf(string+1,"%x",&num);
+		sscanf(string+1,"%hx",&num);
 		return num;
 	} else if (*string == '%') {
 		unsigned short shift_amnt = 0;
