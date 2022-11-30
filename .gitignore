@@ -1,1 +1,3 @@
-XASM.PRG
+*.prg
+
+dump*.bin
