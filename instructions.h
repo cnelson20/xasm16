@@ -12,7 +12,9 @@ struct command {
 	struct instruction inst;
 	char *label;
 	char *label2;
-		
+
+    unsigned short line_num;
+
 	unsigned char is_directive;
 	unsigned char *directive_data;
 	unsigned char directive_data_len;

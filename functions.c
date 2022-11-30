@@ -20,10 +20,6 @@ void strtoupper(char *string) {
 	}
 }
 
-void cbm_chrout(char c) {
-	putchar(c);
-}
-
 char *findwhitespace(char *string) {
 	while (*string) {
 		if (*string >= 0x21) { break; }

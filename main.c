@@ -14,12 +14,15 @@ char *fileloc;
 char *fileloc_term;
 
 struct dyn_list command_list;
+struct dyn_list sym_table;
 
 char scratch[2 + 32];
 char *filename = scratch + 2;
 unsigned char filename_size = 32;
 char output_filename[32];
 unsigned char verbose_mode = 1;
+
+char *lastgloballabel;
 
 void main() {		
 	printf("enter filename: ");
@@ -59,6 +62,17 @@ void main() {
 	third_pass();
 	puts("fourth-pass()");
 	fourth_pass();
+
+    unsigned short i;
+    for (i = 0; i < sym_table.length; ++i) {
+        struct string_short_pair *sp = sym_table.list[i];
+        free(sp->key);
+        free(sp);
+    }
+    free(sym_table.list);
+
+    free(fileloc);
+
 }
 
 #define MAX_FILE_SIZE 16384
@@ -93,7 +107,8 @@ void first_pass() {
 	/* makes life easier */
     strtolower(temp);
 
-	
+    lastgloballabel = NULL;
+
 	while (*temp) {
 		/* setup line */
 		char *line = temp;
@@ -385,10 +400,22 @@ void first_pass() {
 				char_following_colon = 0xFF;
 			}
 			
-			if ((firstchar >= 'a' && firstchar <= 'z') && colon_pos != NULL && char_following_colon <= 0x20) {		
-				comm = malloc(sizeof(struct command));
+			if (((firstchar == '@') || (firstchar >= 'a' && firstchar <= 'z')) && colon_pos != NULL && char_following_colon <= 0x20) {
+                comm = malloc(sizeof(struct command));
 				*colon_pos = '\0';
-				comm->label = strdup(line);			
+                if (firstchar != '@') {
+                    comm->label = strdup(line);
+                    lastgloballabel = comm->label;
+                } else {
+                    if (!lastgloballabel) {
+                        printf("no global label before cheap local label '%s' declared.\n", line);
+                        exit(1);
+                    }
+                    comm->label = malloc(2 + strlen(lastgloballabel) + strlen(line));
+                    strcpy(comm->label, "@");
+                    strcat(comm->label, lastgloballabel);
+                    strcat(comm->label, line);
+                }
 				comm->label2 = NULL;
 				*colon_pos = ':';
 				comm->is_directive = 0; 
@@ -412,19 +439,26 @@ void first_pass() {
 				temp = searchwhitespacerev(equal_pos - 1) + 1;
 				char_temp = *temp;
 				*temp = '\0';
-				
-				comm->label = strdup(line);
-				
+
+                if (*line == '@') {
+                    comm->label = malloc(2 + strlen(lastgloballabel) + strlen(line));
+                    strcpy(comm->label, "@");
+                    strcat(comm->label, lastgloballabel);
+                    strcat(comm->label, line);
+                } else {
+                    comm->label = strdup(line);
+                }
+
 				*temp = char_temp;
 				line = findwhitespace(equal_pos + 1);
 				temp = findwhitespacerev(line) + 1;
 				char_temp = *temp;
 				*temp = '\0';
-				comm->label2 = strdup(line);
-				
+                comm->label2 = strdup(line);
+
 				*temp = char_temp;
 				comm->is_directive = 0;
-				
+
 				dyn_list_add(&command_list, comm);
 			}
 			if (verbose_mode) { 
@@ -449,8 +483,6 @@ void first_pass() {
 	*fileloc_term = '\0';
 }
 
-struct dyn_list sym_table;
-
 /* 
 	Loop through command list,
 	figure out values of labels and interpret assembler directives
@@ -469,7 +501,7 @@ void second_pass() {
 			char *line;
 			// Check which directive
 			line = curr_command->label;
-			//printf("directive: '%s'\n", line);
+            //printf("directive: '%s'\n", line);
 			++line;
 			space_pos = strchr(line, 0x20);
 			if (space_pos == NULL) { space_pos = strlen(line) + line; }
@@ -564,17 +596,32 @@ void second_pass() {
 		} else if (curr_command->label != NULL) {
 			if (curr_command->label2 == NULL) {
 				struct string_short_pair *pair = malloc(sizeof(struct string_short_pair));
+                unsigned short i;
 				pair->key = curr_command->label;
 				pair->val = prg_ptr;
+                for (i = 0; i < sym_table.length; ++i) {
+                    if (!strcmp(pair->key, ((struct string_short_pair *)sym_table.list[i])->key)) {
+                        printf("error: redefinition of symbol '%s'\n", pair->key);
+                        exit(1);
+                    }
+                }
 				dyn_list_add(&sym_table, pair);
 			} else {
 				struct string_short_pair *pair = malloc(sizeof(struct string_short_pair));
+                unsigned short i;
 				pair->key = curr_command->label;
+                for (i = 0; i < sym_table.length; ++i) {
+                    if (!strcmp(pair->key, ((struct string_short_pair *)sym_table.list[i])->key)) {
+                        printf("error: redefinition of symbol '%s'\n", pair->key);
+                        exit(1);
+                    }
+                }
 				if (is_num(curr_command->label2)) {
 					pair->val = parse_num(curr_command->label2);
 				} else {
 					pair->val = get_symbol_value(curr_command->label2);
 				}
+
 				dyn_list_add(&sym_table, pair);
 			}
 		/* 
@@ -613,7 +660,8 @@ void third_pass() {
 		
 		putchar('\n');
 	}*/
-	
+	lastgloballabel = NULL;
+
 	for (i = 0; i < command_list.length; ++i) {
 		struct command *curr_command = command_list.list[i];
 		/* Checking if command is an instruction */
@@ -672,7 +720,11 @@ void third_pass() {
 			prg_ptr += size;
 		} else if (curr_command->is_directive) {
 			prg_ptr += curr_command->directive_data_len;
-		}
+		} else {
+            if (*curr_command->label != '\0' && *curr_command->label != '@') {
+                lastgloballabel = curr_command->label;
+            }
+        }
 	}
 }
 
@@ -787,7 +839,11 @@ unsigned short find_in_symtable(char *string) {
 		struct string_short_pair *curr_pair = sym_table.list[i];
 		if (!strcmp(curr_pair->key, string)) {
 			return curr_pair->val;
-		}
+		} else if (*string == '@' && lastgloballabel != NULL) {
+          if (!memcmp(curr_pair->key + 1, lastgloballabel, strlen(lastgloballabel)) && !strcmp(strchr(curr_pair->key + 1, '@'), string)) {
+              return curr_pair->val;
+          }
+        }
 	}
 	printf("definition for symbol '%s' not found!\n", string);
 	exit(0);
