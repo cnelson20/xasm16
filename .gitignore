@@ -1,3 +1,9 @@
+# prgs
 *.prg
+*.o
 
+# x16 emulator dumps
 dump*.bin
+
+# clion
+.idea/
