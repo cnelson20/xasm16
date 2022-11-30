@@ -61,14 +61,16 @@ void main() {
 	fourth_pass();
 }
 
+#define MAX_FILE_SIZE 16384
+
 /* 
 	Loads file into location.
 */
 void loadfile(char *filename) {
 	int fd = open(filename, O_RDONLY);
-	fileloc = malloc(65536);
+	fileloc = malloc(MAX_FILE_SIZE);
 	
-	*(fileloc + read(fd, fileloc, 65536)) = '\0';
+	*(fileloc + read(fd, fileloc, MAX_FILE_SIZE)) = '\0';
 	fileloc_term = fileloc + strlen(fileloc);
 }
 
@@ -89,7 +91,8 @@ void first_pass() {
 	
 	init_dyn_list(&command_list);
 	/* makes life easier */
-  strtolower(temp);
+    strtolower(temp);
+
 	
 	while (*temp) {
 		/* setup line */
@@ -270,6 +273,7 @@ void first_pass() {
 							/* (zp),Y */
 							if (inst_xy_pos == NULL || right_paren_pos >= comma_pos) {
 								printf("illegal addressing mode: '%s'\n", line_first);
+                                exit(1);
 							}
 							
 							/* (ADDR) */
@@ -308,14 +312,15 @@ void first_pass() {
 						char char_temp;
 						char *temp;
 						/* Find X */
-						inst_xy_pos = strchr(line, 0x58);
+						inst_xy_pos = strchr(line, 'x');
 						if (inst_xy_pos != NULL) {
 							comm->inst.mode = MODE_ABS_X;
 						} else {
 							/* Else check for Y */
-							inst_xy_pos = strchr(line, 0x59);
+							inst_xy_pos = strchr(line, 'y');
 							if (inst_xy_pos == NULL) {
 								printf("illegal addressing mode: '%s'\n", line_first);
+                                exit(1);
 							}
 							comm->inst.mode = MODE_ABS_Y;
 						}
@@ -536,7 +541,10 @@ void second_pass() {
 				++left_quote_pos;
 				
 				data = strdup(left_quote_pos);
-				
+                #ifndef __CC65__
+                strtoupper(data);
+                #endif
+
 				curr_command->directive_data = data;
 				curr_command->directive_data_len = strlen(left_quote_pos) + 1;
 				prg_ptr += curr_command->directive_data_len;
@@ -581,7 +589,7 @@ void second_pass() {
 	printf("\nsym_table:\n");
 	for (i = 0; i < sym_table.length; ++i) {
 		struct string_short_pair *curr_pair = sym_table.list[i];
-		printf("key: '%s' val: %u\n", curr_pair->key, curr_pair->val);
+		printf("key: '%s' val: $%04x\n", curr_pair->key, curr_pair->val);
 	}
 }
 
