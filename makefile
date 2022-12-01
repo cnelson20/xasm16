@@ -22,3 +22,7 @@ functions.o: functions.c functions.h
 
 dyn_list.o: dyn_list.c dyn_list.h
 	gcc -c dyn_list.c
+clean:
+	rm *.o
+	rm $(PROG_NAME)
+	rm *.d
