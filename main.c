@@ -210,7 +210,12 @@ void first_pass() {
 					comm->inst.mode = MODE_IMP;
 				}
 				comm->inst.label = NULL;
-				comm->inst.mem_size = 1;
+                if (ins_num != IN_BRK) {
+                    comm->inst.mem_size = 1;
+                } else {
+                    comm->inst.mem_size = 2;
+                    comm->inst.val = 0xEA; // a nop instruction, since BRKs are two-byte instructions
+                }
 			} else {
 				/* Now start line at one character past the space, then move forward to ignore whitespace */
 				line = findwhitespace(space_temp);

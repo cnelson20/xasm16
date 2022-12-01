@@ -2,6 +2,10 @@
 *.prg
 *.o
 
+# program
+xasm
+XASM.PRG
+
 # x16 emulator dumps
 dump*.bin
 

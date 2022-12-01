@@ -1,9 +1,15 @@
 CC = gcc
+
+PROG_NAME = xasm
+
 CODE_FILES = main.o instructions.o functions.o dyn_list.o
 HEADERS = main.h instructions.h functions.h dyn_list.h
 
-all: $(CODE_FILES)
-	$(CC) $(CODE_FILES) -g3 -o xasm
+all: $(PROG_NAME)
+	
+
+$(PROG_NAME): $(CODE_FILES)
+	$(CC) $(CODE_FILES) -g3 -o $(PROG_NAME)
 
 main.o: main.c main.h
 	gcc -c main.c
