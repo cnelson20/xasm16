@@ -22,6 +22,8 @@ unsigned char filename_size = 32;
 char output_filename[32];
 unsigned char verbose_mode = 1;
 
+unsigned short program_start_addr;
+
 char *lastgloballabel;
 
 void main() {
@@ -39,13 +41,26 @@ void main() {
     printf("output filename? (blank=use file as basis):");
     fgets(output_filename, sizeof(output_filename), stdin);
     *strchr(output_filename, '\n') = '\0';
-    if (verbose_mode) {
-        char *temp = malloc(16);
-        printf("be verbose mode? (y/n):");
-        fgets(temp, 16, stdin);
-        verbose_mode = (*temp == 'y');
-        free(temp);
+
+    char *temp = malloc(16);
+    printf("be verbose mode? (y/n):");
+    fgets(temp, 16, stdin);
+    verbose_mode = (*temp == 'y' || *temp == 'Y');
+
+    printf("program start address? (blank=default)\n");
+    printf("entering an addr removes basic header: ");
+    fgets(temp, 16, stdin);
+    if (*temp == '$') {
+        if (sscanf(temp + 1, "%hx\n", &program_start_addr) == 0) {
+            program_start_addr = cx16_startaddr;
+        }
+    } else {
+        if (sscanf(temp, "%hd\n", &program_start_addr) == 0) {
+            program_start_addr = cx16_startaddr;
+        }
     }
+
+    free(temp);
 
     puts("first-pass()");
     first_pass();
@@ -493,7 +508,7 @@ void first_pass() {
 	figure out values of labels and interpret assembler directives
 */
 void second_pass() {
-    unsigned short start_address = cx16_startaddr;
+    unsigned short start_address = program_start_addr;
     unsigned short prg_ptr = start_address;
     unsigned short i;
 
@@ -657,7 +672,7 @@ void second_pass() {
 */
 void third_pass() {
     unsigned short i;
-    unsigned short prg_ptr = cx16_startaddr;
+    unsigned short prg_ptr = program_start_addr;
 
     /*for (i = 0; i < command_list.length; ++i) {
         struct command *curr_command = command_list.list[i];
@@ -746,7 +761,9 @@ void fourth_pass() {
     int fd = open_file_write();
     unsigned short i;
 
-    write(fd, cx16_prg_header, cx16_prg_header_len);
+    if (program_start_addr == cx16_startaddr) {
+        write(fd, cx16_prg_header, cx16_prg_header_len);
+    }
     for (i = 0; i < command_list.length; ++i) {
         struct command *curr_command = command_list.list[i];
         if (curr_command->label == NULL) {
