@@ -59,6 +59,9 @@ void main() {
             program_start_addr = cx16_startaddr;
         }
     }
+    if (program_start_addr == 0) {
+        program_start_addr = cx16_startaddr;
+    }
 
     free(temp);
 
@@ -574,13 +577,50 @@ void second_pass() {
 				for (i = 0; i < size; i++) {
 					data[i*data_width] = (unsigned short)(bytes.list[i]) % 256;
 					if (data_width == 2) {
-						data[i*2+1] = (unsigned char)(bytes.list[i]) / 256;
+						data[i*2+1] = ((unsigned short)(bytes.list[i])) / 256;
 					}
 				}
 				curr_command->directive_data = data;
 				curr_command->directive_data_len = size * data_width;
 				prg_ptr += size;
-			} else if (!strcmp("asciiz",line)) {
+			} else if (!strcmp("res", line)) {
+                int size;
+                int value = 0;
+                int i;
+                char *comma_pos;
+
+                space_pos = findwhitespace(space_pos + 1);
+                comma_pos = strchr(space_pos, ',');
+                if (comma_pos != NULL) {
+                    *comma_pos = '\0';
+                    comma_pos = findwhitespace(comma_pos + 1);
+                    *(findwhitespacerev(comma_pos) + 1) = '\0';
+                }
+                *(findwhitespacerev(space_pos) + 1) = '\0';
+
+                if (comma_pos != NULL) {
+                    if (is_num(comma_pos)) {
+                        value = parse_num(comma_pos);
+                    } else {
+                        value = get_symbol_value(comma_pos);
+                    }
+                }
+
+                if (is_num(space_pos)) {
+                    size = parse_num(space_pos);
+                } else {
+                    size = get_symbol_value(space_pos);
+                }
+
+                printf("space_pos: '%s'\n", space_pos);
+                printf("comma_pos: '%s'\n", comma_pos);
+
+                curr_command->directive_data = malloc(size);
+                for (i = 0; i < size; i++) {
+                    ((char *) curr_command->directive_data)[i] = value;
+                }
+                curr_command->directive_data_len = size;
+            } else if (!strcmp("asciiz",line)) {
 				char *left_quote_pos, *right_quote_pos;
 				char *data;
 				left_quote_pos = strchr(space_pos+1, '"');
@@ -591,7 +631,7 @@ void second_pass() {
 				}
 				*right_quote_pos = '\0';
 				++left_quote_pos;
-				
+
 				data = strdup(left_quote_pos);
                 #ifndef __CC65__
                 strtoupper(data);
