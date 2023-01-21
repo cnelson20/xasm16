@@ -5,8 +5,10 @@ extern char *fileloc_term;
 
 extern struct dyn_list instruction_list;
 
-void main();
+int main(int argc, char *argv[]);
 void loadfile(char *filename);
+
+void parse_cmdline_args(int argc, char *argv[]);
 
 void first_pass();
 void second_pass();

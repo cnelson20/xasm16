@@ -16,54 +16,26 @@ char *fileloc_term;
 struct dyn_list command_list;
 struct dyn_list sym_table;
 
-char scratch[2 + 32];
-char *filename = scratch + 2;
-unsigned char filename_size = 32;
-char output_filename[32];
-unsigned char verbose_mode = 1;
+char *filename;
+char *output_filename;
+unsigned char verbose_mode = 0;
 
 unsigned short program_start_addr;
 
 char *lastgloballabel;
 
-void main() {
-    printf("enter filename: ");
-    fgets(filename, filename_size, stdin);
-    *strchr(filename, '\n') = '\0';
+int main(int argc, char *argv[]) {
+    parse_cmdline_args(argc, argv);
 
     loadfile(filename);
     fileloc_term = strlen(fileloc) + fileloc;
     if (fileloc_term == fileloc) {
         puts("no such file exists");
-        return;
+        return 1;
     }
     printf("file length: %lu\n", fileloc_term - fileloc);
-    printf("output filename? (blank=use file as basis):");
-    fgets(output_filename, sizeof(output_filename), stdin);
-    *strchr(output_filename, '\n') = '\0';
+	printf("start addr: $%hx\n", program_start_addr);
 
-    char *temp = malloc(16);
-    printf("be verbose mode? (y/n):");
-    fgets(temp, 16, stdin);
-    verbose_mode = (*temp == 'y' || *temp == 'Y');
-
-    printf("program start address? (blank=default)\n");
-    printf("entering an addr removes basic header: ");
-    fgets(temp, 16, stdin);
-    if (*temp == '$') {
-        if (sscanf(temp + 1, "%hx\n", &program_start_addr) == 0) {
-            program_start_addr = cx16_startaddr;
-        }
-    } else {
-        if (sscanf(temp, "%hd\n", &program_start_addr) == 0) {
-            program_start_addr = cx16_startaddr;
-        }
-    }
-    if (program_start_addr == 0) {
-        program_start_addr = cx16_startaddr;
-    }
-
-    free(temp);
 
     puts("first-pass()");
     first_pass();
@@ -91,6 +63,7 @@ void main() {
 
     free(fileloc);
 
+    return 0;
 }
 
 #define MAX_FILE_SIZE 16384
@@ -104,6 +77,84 @@ void loadfile(char *filename) {
 
     *(fileloc + read(fd, fileloc, MAX_FILE_SIZE)) = '\0';
     fileloc_term = fileloc + strlen(fileloc);
+}
+
+void parse_cmdline_args(int argc, char *argv[]) {
+    argc--;
+    argv++;
+	
+	int have_received_input_file = 0;
+
+	filename = NULL;
+    output_filename = NULL;
+
+    while (argc > 0) {
+        if (!strcmp("-o", argv[0])) {
+            argc--;
+            argv++;
+
+            if (argv[0] == NULL) {
+                printf("Must provide a value for flag -o\n");
+            }
+            free(output_filename);
+            output_filename = strdup(argv[0]);
+
+            argc--;
+            argv++;
+        } else if (!strcmp("-v", argv[0])) {
+            verbose_mode = 1;
+
+            argc--;
+            argv++;
+        } else if (!strcmp("-addr", argv[0])) {
+            argc--;
+            argv++;
+
+            if (argv[0] == NULL) {
+                printf("Must provide a value for flag -addr\n");
+            }
+            if (!memcmp(argv[0], "0x", 2)) {
+                char *hexnum = argv[0] + 2;
+                sscanf(hexnum, "%hx", &program_start_addr);
+            } else if (argv[0][0] == '$') {
+                char *hexnum = argv[0] + 1;
+                sscanf(hexnum, "%hx", &program_start_addr);
+            } else {
+                sscanf(argv[0], "%hd", &program_start_addr);
+            }
+
+            argc--;
+            argv++;
+        } else {
+			if (have_received_input_file) {
+				printf("Illegal command line argument '%s'\n", argv[0]);
+				exit(1);
+			} else {
+				filename = strdup(argv[0]);
+				have_received_input_file = 1;
+				
+				argc--;
+				argv++;
+			}
+        }
+    }
+	if (filename == NULL) {
+        printf("Please provide a filename to assemble!\n");
+        exit(1);
+	}
+	if (output_filename == NULL) {
+		char *lastdot = strrchr(filename, '.');
+		if (lastdot) {
+			output_filename = malloc(lastdot - filename + 4);
+			strcpy(output_filename, filename);
+			lastdot = strrchr(output_filename, '.');
+			strcpy(lastdot, ".prg");
+		} else {
+			output_filename = malloc(strlen(filename) + 5);
+			strcpy(output_filename, filename);
+			strcat(output_filename, ".prg");
+		}
+	}
 }
 
 unsigned char is_letter(char c) {
@@ -612,15 +663,17 @@ void second_pass() {
                     size = get_symbol_value(space_pos);
                 }
 
-                printf("space_pos: '%s'\n", space_pos);
-                printf("comma_pos: '%s'\n", comma_pos);
+                //printf("space_pos: '%s'\n", space_pos);
+                //printf("comma_pos: '%s'\n", comma_pos);
 
                 curr_command->directive_data = malloc(size);
                 for (i = 0; i < size; i++) {
                     ((char *) curr_command->directive_data)[i] = value;
                 }
                 curr_command->directive_data_len = size;
-            } else if (!strcmp("asciiz",line)) {
+				prg_ptr += size;
+            } else if (!strcmp("asciiz", line) || !strcmp("ascii", line)) {
+                char is_null_terminated = !strcmp("asciiz", line);
 				char *left_quote_pos, *right_quote_pos;
 				char *data;
 				left_quote_pos = strchr(space_pos+1, '"');
@@ -638,7 +691,7 @@ void second_pass() {
                 #endif
 
                 curr_command->directive_data = data;
-                curr_command->directive_data_len = strlen(left_quote_pos) + 1;
+                curr_command->directive_data_len = strlen(left_quote_pos) + (is_null_terminated ? 1 : 0);
                 prg_ptr += curr_command->directive_data_len;
             } else if (!strcmp("org", line) || !strcmp("pc", line)) {
                 curr_command->label = strdup(".org");
@@ -834,7 +887,7 @@ int open_file_write() {
         strcat(filename, ".prg");
     }
 
-    printf("output-filename: '%s'\n", filename);
+    printf("output_filename: '%s'\n", filename);
     fd = creat(filename, 0777);
 
     if (errno) {
