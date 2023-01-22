@@ -178,6 +178,8 @@ void first_pass() {
 
     lastgloballabel = NULL;
 
+    int current_file_line = 1;
+
     while (*temp) {
         /* setup line */
         char *line = temp;
@@ -188,7 +190,7 @@ void first_pass() {
         unsigned char string_index;
 
         /* find next \r and replace with null terminator */
-        temp = strchr(line,'\r');
+        temp = strchr(line, '\r');
         if (temp == NULL) {
             temp = strchr(line, '\n');
         }
@@ -196,16 +198,18 @@ void first_pass() {
         if (temp == NULL && line + strlen(line) < fileloc_term) {
             temp = line + strlen(line);
         }
-        /*printf("line: %p temp: %p\n", line, temp);
-        puts("--------");
-        for (ins_num = 0; ins_num < 16; ins_num++) {
-            printf("%hx ", line[ins_num]);
+
+        /* remove preceding whitespace */
+        if (*line == '\n') {
+            line++;
         }
-        puts("");
-        puts("--------");*/
+        while (*line == ' ' || *line == '\t') {
+            line++;
+        }
 
         if (temp == line) {
             temp++;
+            current_file_line++;
             continue;
         }
         /* if not found default to end of doc */
@@ -217,11 +221,6 @@ void first_pass() {
             for CRLF files
             redunant due to the next line
         */
-        if (*line == '\n') {line++;}
-        /* remove preceding whitespace */
-        while (*line <= 0x20) {
-            line++;
-        }
 
         semicolon_temp = findwhitespacerev(line);
         if (semicolon_temp != NULL) {
@@ -254,6 +253,7 @@ void first_pass() {
         if (verbose_mode) { printf("line: \"%s\" in #: %hhx\n", line, ins_num); }
 
         comm = malloc(sizeof(struct command));
+        comm->line_num = current_file_line;
 
         if (ins_num != 0xFF) {
             char *space_temp;
@@ -291,7 +291,7 @@ void first_pass() {
                 if (verbose_mode) { printf("line args: '%s'\n", line); }
                 /* Figure out addressing mode */
 
-                /* All branches use relative adressing */
+                /* All branches use relative addressing */
                 if (ins_num == IN_BCC || ins_num == IN_BCS || ins_num == IN_BEQ || ins_num == IN_BMI || ins_num == IN_BNE || ins_num == IN_BPL || ins_num == IN_BVC || ins_num == IN_BVS) {
                     char char_temp;
                     char *temp = findwhitespacerev(line) + 1;
@@ -395,7 +395,7 @@ void first_pass() {
                         *right_paren_pos = ')';
 
                         comm->inst.mode = MODE_IND;
-                        comm->inst.mem_size = 3;
+                        comm->inst.mem_size = (ins_num == IN_JMP) ? 3 : 2;
                         /* absolute x,y addressing  */
                     } else if (comma_pos != NULL) {
                         char char_temp;
@@ -449,6 +449,7 @@ void first_pass() {
             }
             /* print some info about instruction for debug */
             if (verbose_mode) {
+                printf("in->line_num: %hu\n", comm->line_num);
                 printf("in->mode: %hhu\n", comm->inst.mode);
                 if (comm->inst.label) {
                     printf("in->label: '%s'\n", comm->inst.label);
@@ -536,22 +537,16 @@ void first_pass() {
                 dyn_list_add(&command_list, comm);
             }
             if (verbose_mode) {
-                if (comm->label2 != NULL) {
-                    printf("label1: '%s' label2: '%s'\n", comm->label, comm->label2);
-                } else {
-                    printf("is_directive: %hhx label/directive: '%s'\n", comm->is_directive, comm->label);
-                }
             }
         }
-
 
         /* add semicolon back to line */
         if (semicolon_temp != NULL) {
             *semicolon_temp = ';';
         }
-        /* set end of line back to carriage return*/
-        *temp = '\n';
+        /* set end of line back to carriage return */
         ++temp;
+        current_file_line++;
     }
     // Null terminating byte may have been removed, so re-add it
     *fileloc_term = '\0';
