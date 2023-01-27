@@ -75,6 +75,20 @@ char instruction_string_list[][4] = {
 };
 unsigned char instruction_string_list_len = sizeof(instruction_string_list) / sizeof(instruction_string_list[0]);
 
+char addressing_mode_names[][8] = {
+        "imp",
+        "imm",
+        "zp, X",
+        "abs",
+        "abs, X",
+        "abs, Y",
+        "ind",
+        "(ind,X)",
+        "(ind),Y",
+        "acc",
+        "rel"
+};
+
 
 unsigned char opcode_matrix[][12] = {
 	/* MODE    IMP,  IMM,  ZP,   ZPX,  ABS,  ABX,  ABY,  IND,  INX,  INY   ACC,  REL */

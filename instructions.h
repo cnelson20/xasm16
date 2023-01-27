@@ -24,6 +24,8 @@ extern unsigned char cx16_prg_header[];
 extern unsigned char cx16_prg_header_len;
 extern unsigned short cx16_startaddr;
 
+extern char addressing_mode_names[][8];
+
 extern unsigned char opcode_matrix[][12];
 
 extern char instruction_string_list[][4];
@@ -67,25 +69,32 @@ unsigned char get_instruction_from_string(char *string);
 #define IN_ORA 34
 #define IN_PHA 35
 #define IN_PHP 36
-#define IN_PLA 37
-#define IN_PLP 38
-#define IN_ROL 39
-#define IN_ROR 40
-#define IN_RTI 41
-#define IN_RTS 42
-#define IN_SBC 43
-#define IN_SEC 44
-#define IN_SED 45
-#define IN_SEI 46
-#define IN_STA 47
-#define IN_STX 48
-#define IN_STY 49
-#define IN_TAX 50
-#define IN_TAY 51
-#define IN_TSX 52
-#define IN_TXA 53
-#define IN_TXS 54
-#define IN_TYA 55
+#define IN_PHX 37
+#define IN_PHY 38
+#define IN_PLA 39
+#define IN_PLP 40
+#define IN_PLX 41
+#define IN_PLY 42
+#define IN_ROL 43
+#define IN_ROR 44
+#define IN_RTI 45
+#define IN_RTS 46
+#define IN_SBC 47
+#define IN_SEC 48
+#define IN_SED 49
+#define IN_SEI 50
+#define IN_STA 51
+#define IN_STP 52
+#define IN_STX 53
+#define IN_STY 54
+#define IN_STZ 55
+#define IN_TAX 56
+#define IN_TAY 57
+#define IN_TSX 58
+#define IN_TXA 59
+#define IN_TXS 60
+#define IN_TYA 61
+#define IN_WAI 62s
 
 #define MODE_IMP 0
 #define MODE_IMM 1

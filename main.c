@@ -784,7 +784,10 @@ void third_pass() {
             unsigned char size;
             unsigned char opcode = opcode_matrix[curr_command->inst.type][curr_command->inst.mode];
             if (opcode == 0xFF) {
-                printf("illegal addressing mode: instruction '%s' with mode %hu\n", instruction_string_list[curr_command->inst.type], curr_command->inst.mode);
+                printf("illegal addressing mode: instruction '%s' (code %hhu) with mode %s\n",
+                       instruction_string_list[curr_command->inst.type],
+                       curr_command->inst.type,
+                       addressing_mode_names[curr_command->inst.mode]);
                 printf("index: %u\n", i);
                 exit(0);
             }
