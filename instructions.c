@@ -78,6 +78,7 @@ unsigned char instruction_string_list_len = sizeof(instruction_string_list) / si
 char addressing_mode_names[][8] = {
         "imp",
         "imm",
+        "zp",
         "zp, X",
         "abs",
         "abs, X",

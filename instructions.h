@@ -94,7 +94,7 @@ unsigned char get_instruction_from_string(char *string);
 #define IN_TXA 59
 #define IN_TXS 60
 #define IN_TYA 61
-#define IN_WAI 62s
+#define IN_WAI 62
 
 #define MODE_IMP 0
 #define MODE_IMM 1
