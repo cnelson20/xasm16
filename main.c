@@ -334,7 +334,7 @@ void first_pass() {
                         /* indirect addressing */
                     } else if (left_paren_pos != NULL && comma_pos != NULL) {
                         line = findwhitespace(left_paren_pos + 1);
-                        inst_xy_pos = strchr(line, 0x58); // Find X
+                        inst_xy_pos = strchr(line, 'x'); // Find x;
                         if (inst_xy_pos != NULL) {
                             /* (zp,X) */
                             char char_temp;
@@ -358,9 +358,10 @@ void first_pass() {
                         } else {
                             char char_temp;
                             char *temp;
-                            inst_xy_pos = strchr(line, 0x59); // Find Y
+                            inst_xy_pos = strchr(line, 'y'); // Find Y
                             /* (zp),Y */
                             if (inst_xy_pos == NULL || right_paren_pos >= comma_pos) {
+                                printf("inst_xy_pos: %p\n", inst_xy_pos);
                                 printf("illegal addressing mode: '%s'\n", line_first);
                                 exit(1);
                             }
@@ -869,24 +870,13 @@ void fourth_pass() {
 
 int open_file_write() {
     int fd;
-    char *period;
 
     //printf("%hu\n", strlen(output_filename));
-    if (strlen(output_filename) != 0) {
-        strcpy(filename, output_filename);
-    } else {
-        period = strrchr(filename, '.');
-        if (period != NULL) {
-            *period = '\0';
-        }
-        strcat(filename, ".prg");
-    }
-
-    printf("output_filename: '%s'\n", filename);
-    fd = creat(filename, 0777);
+    printf("output_filename: '%s'\n", output_filename);
+    fd = creat(output_filename, 0777);
 
     if (errno) {
-        printf("error: '%s'\n", strerror(errno));
+        printf("system error opening %s: '%s'\n", output_filename, strerror(errno));
     } else {
         puts("errno = 0");
     }
