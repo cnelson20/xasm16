@@ -442,7 +442,7 @@ void first_pass() {
                             goto actually_no_args;
                         }
 
-                        if ((ins_num == IN_INC || ins_num == IN_DEC || ins_num == IN_ASL || ins_num == IN_LSR || ins_num == IN_ROL || ins_num == IN_ROR) && !strcmp(line,"a")) {
+                        if ((ins_num == IN_INC || ins_num == IN_DEC || ins_num == IN_ASL || ins_num == IN_LSR || ins_num == IN_ROL || ins_num == IN_ROR) && !strcasecmp(line,"a")) {
                             comm->inst.mode = MODE_ACC;
                             comm->inst.label = NULL;
                             comm->inst.mem_size = 1;
