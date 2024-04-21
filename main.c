@@ -326,11 +326,11 @@ void first_pass() {
                     /* Check for non matching parenthesis */
                     if ((left_paren_pos != NULL) != (right_paren_pos != NULL) ) {
                         printf("non-matching parenthesis: '%s'\n", line_first);
-                        exit(0);
+                        exit(EXIT_FAILURE);
                         /* if ) is before ( something's wrong */
                     } else if (left_paren_pos > right_paren_pos) {
                         printf("illegal addressing error (parenthesis): '%s'\n", line_first);
-                        exit(0);
+                        exit(EXIT_FAILURE);
                         /* indirect addressing */
                     } else if (left_paren_pos != NULL && comma_pos != NULL) {
                         line = findwhitespace(left_paren_pos + 1);
@@ -410,7 +410,7 @@ void first_pass() {
                             inst_xy_pos = strchr(line, 'y');
                             if (inst_xy_pos == NULL) {
                                 printf("illegal addressing mode: '%s'\n", line_first);
-                                exit(1);
+                                exit(EXIT_FAILURE);
                             }
                             comm->inst.mode = MODE_ABS_Y;
                         }
@@ -485,7 +485,7 @@ void first_pass() {
                 } else {
                     if (!lastgloballabel) {
                         printf("no global label before cheap local label '%s' declared.\n", line);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     comm->label = malloc(2 + strlen(lastgloballabel) + strlen(line));
                     strcpy(comm->label, "@");
@@ -510,7 +510,7 @@ void first_pass() {
                 char *equal_pos = strchr(line, '=');
                 if (equal_pos == NULL) {
                     printf("illegal statement: '%s'\n", line_first);
-                    exit(0);
+                    exit(EXIT_FAILURE);
                 }
                 temp = searchwhitespacerev(equal_pos - 1) + 1;
                 char_temp = *temp;
@@ -609,7 +609,7 @@ void second_pass() {
 					}
 					if (x >= (data_width == 2 ? 65536 : 256)) {
 						printf("'%u' out of range [0,255]\n", x);
-						exit(0);
+						exit(EXIT_FAILURE);
 					}
 					dyn_list_add(&bytes, (void *)x);
 					++size;
@@ -676,7 +676,7 @@ void second_pass() {
 				right_quote_pos = strrchr(space_pos+1, '"');
 				if (left_quote_pos == right_quote_pos || !left_quote_pos || !right_quote_pos) {
 					printf("illegal format for string literal: '%s'\n", space_pos+1);
-					exit(0);
+					exit(EXIT_FAILURE);
 				}
 				*right_quote_pos = '\0';
 				++left_quote_pos;
@@ -695,7 +695,7 @@ void second_pass() {
                 prg_ptr = parse_num(curr_command->label2);
             } else {
                 printf("unknown assembler directive '%s' found\n", line - 1);
-                exit(0);
+                exit(EXIT_FAILURE);
             }
             /*
                 label definition
@@ -715,7 +715,7 @@ void second_pass() {
                 for (i = 0; i < sym_table.length; ++i) {
                     if (!strcmp(pair->key, ((struct string_short_pair *)sym_table.list[i])->key)) {
                         printf("error: redefinition of symbol '%s'\n", pair->key);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                 }
                 dyn_list_add(&sym_table, pair);
@@ -726,7 +726,7 @@ void second_pass() {
                 for (i = 0; i < sym_table.length; ++i) {
                     if (!strcmp(pair->key, ((struct string_short_pair *)sym_table.list[i])->key)) {
                         printf("error: redefinition of symbol '%s'\n", pair->key);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                 }
                 if (is_num(curr_command->label2)) {
@@ -808,6 +808,7 @@ void third_pass() {
                 }
                 if (size == 2 && temp_val >= 256) {
                     printf("Range error: '%s' - '%s' out of range [0,255]\n", instruction_string_list[curr_command->inst.type], lbl);
+					exit(EXIT_FAILURE);
                 }
                 curr_command->inst.val = temp_val;
             } else if (mode == MODE_REL) {
@@ -821,8 +822,9 @@ void third_pass() {
                     temp_val = ((long int)lbl_val) - ((long int)prg_ptr) - 2;
                     //printf("temp-val: %d\n", temp_val);
                 }
-                if (temp_val > 127 && temp_val < -128) {
+                if (temp_val > 127 || temp_val < -128) {
                     printf("Range error: '%s' - '%s',%d out of range [-128,127]\n", instruction_string_list[curr_command->inst.type], lbl, temp_val);
+					exit(EXIT_FAILURE);
                 }
                 if (temp_val >= 0) {
                     curr_command->inst.val = temp_val;
@@ -880,6 +882,7 @@ int open_file_write() {
 
     if (errno) {
         printf("system error opening %s: '%s'\n", output_filename, strerror(errno));
+		exit(EXIT_FAILURE);
     } else {
         puts("errno = 0");
     }
