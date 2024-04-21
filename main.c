@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +21,7 @@ struct dyn_list sym_table;
 char *filename;
 char *output_filename;
 unsigned char verbose_mode = 0;
-
+unsigned char cbm_caps = 0;
 unsigned short program_start_addr;
 
 char *lastgloballabel;
@@ -125,6 +127,11 @@ void parse_cmdline_args(int argc, char *argv[]) {
 
             argc--;
             argv++;
+		} else if (!strcmp("-fix_caps", argv[0]) || !strcmp("-fc", argv[0])) {
+			cbm_caps = 1;
+			
+			argc--;
+            argv++;
         } else {
 			if (have_received_input_file) {
 				printf("Illegal command line argument '%s'\n", argv[0]);
@@ -174,7 +181,7 @@ void first_pass() {
 
     init_dyn_list(&command_list);
     /* makes life easier */
-    strtolower(temp);
+    //strtolower(temp);
 
     lastgloballabel = NULL;
 
@@ -334,7 +341,7 @@ void first_pass() {
                         /* indirect addressing */
                     } else if (left_paren_pos != NULL && comma_pos != NULL) {
                         line = findwhitespace(left_paren_pos + 1);
-                        inst_xy_pos = strchr(line, 'x'); // Find x;
+                        inst_xy_pos = strcasestr(line, "x"); // Find x;
                         if (inst_xy_pos != NULL) {
                             /* (zp,X) */
                             char char_temp;
@@ -358,7 +365,7 @@ void first_pass() {
                         } else {
                             char char_temp;
                             char *temp;
-                            inst_xy_pos = strchr(line, 'y'); // Find Y
+                            inst_xy_pos = strcasestr(line, "y"); // Find Y
                             /* (zp),Y */
                             if (inst_xy_pos == NULL || right_paren_pos >= comma_pos) {
                                 printf("inst_xy_pos: %p\n", inst_xy_pos);
@@ -402,12 +409,12 @@ void first_pass() {
                         char char_temp;
                         char *temp;
                         /* Find X */
-                        inst_xy_pos = strchr(line, 'x');
+                        inst_xy_pos = strcasestr(line, "x");
                         if (inst_xy_pos != NULL) {
                             comm->inst.mode = MODE_ABS_X;
                         } else {
                             /* Else check for Y */
-                            inst_xy_pos = strchr(line, 'y');
+                            inst_xy_pos = strcasestr(line, "y");
                             if (inst_xy_pos == NULL) {
                                 printf("illegal addressing mode: '%s'\n", line_first);
                                 exit(EXIT_FAILURE);
@@ -573,7 +580,7 @@ void second_pass() {
             line = curr_command->label;
             if (verbose_mode) { printf("directive: '%s'\n", line); }
 			++line;
-			space_pos = strchr(line, 0x20);
+			space_pos = strchr(line, ' ');
 			if (space_pos == NULL) { space_pos = strlen(line) + line; }
 			*space_pos = '\0';
 			if (!strcmp("db", line) || !strcmp("byte", line) || !strcmp("dw", line) || !strcmp("word", line)) {
@@ -682,9 +689,9 @@ void second_pass() {
 				++left_quote_pos;
 
 				data = strdup(left_quote_pos);
-                #ifndef __CC65__
-                strtoupper(data);
-                #endif
+                if (cbm_caps) {
+					strtoupper(data);
+                }
 
                 curr_command->directive_data = data;
                 curr_command->directive_data_len = strlen(left_quote_pos) + (is_null_terminated ? 1 : 0);

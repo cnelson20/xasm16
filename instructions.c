@@ -167,7 +167,7 @@ unsigned char get_instruction_from_string(char *string) {
 	
 	while (get_max >= get_min) {
 		unsigned char get_mid = (get_min + get_max) >> 1;
-		int get_cmp = memcmp(string, instruction_string_list[get_mid], 3);
+		int get_cmp = strncasecmp(string, instruction_string_list[get_mid], 3);
 		//printf("string: '%s', get-mid: %u, instruction-list[x]: '%s'\n", string, get_mid, instruction_string_list[get_mid]);
 		//printf("get-mid: %d\n", get_mid);
 		//printf("get-cmp: %d\n", get_cmp);
